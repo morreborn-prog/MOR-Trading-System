@@ -1,0 +1,42 @@
+name: MOR 15-Minute Automation Loop
+
+on:
+  schedule:
+    - cron: '*/15 * * * *'  # Every 15 minutes, 24/7
+  workflow_dispatch:        # Manual trigger available
+
+jobs:
+  mor_pipeline:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install requests python-dateutil
+
+      - name: Pull Alpaca fills and update session log
+        env:
+          ALPACA_API_KEY: ${{ secrets.ALPACA_API_KEY }}
+          ALPACA_SECRET_KEY: ${{ secrets.ALPACA_SECRET_KEY }}
+        run: python scripts/pull_alpaca_fills.py
+
+      - name: Update worker accuracy scores
+        run: python scripts/score_workers.py
+
+      - name: Push Notion daily log update
+        env:
+          NOTION_API_KEY: ${{ secrets.NOTION_API_KEY }}
+          NOTION_DATABASE_ID: ${{ secrets.NOTION_DATABASE_ID }}
+        run: python scripts/push_notion_log.py
+
+      - name: Auto-commit session updates
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: 'auto: MOR 15-min pipeline sync [skip ci]'
+          file_pattern: 'logs/*.md workers/*.md'
