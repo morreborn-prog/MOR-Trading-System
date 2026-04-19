@@ -11,7 +11,7 @@ from datetime import date, datetime
 
 ALPACA_KEY = os.environ.get('ALPACA_API_KEY')
 ALPACA_SECRET = os.environ.get('ALPACA_SECRET_KEY')
-BASE_URL = 'https://api.alpaca.markets'
+BASE_URL = 'https://paper-api.alpaca.markets'  # Paper trading API — switch to api.alpaca.markets for live
 
 headers = {
     'APCA-API-KEY-ID': ALPACA_KEY,
