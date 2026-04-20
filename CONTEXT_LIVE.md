@@ -15,7 +15,9 @@
 | Worker | HEALTHY — https://memory-os-worker.morelectric.workers.dev |
 | TV MCP (Jackson) | OFFLINE — Edge installs after 3 PM CT |
 | TV CDP | OFFLINE — launch TradingView Desktop w/ --remote-debugging-port=9222 after 3 PM |
-| ntfy.sh | QUOTA EXHAUSTED — Edge building email-path replacement via workers/alert.js |
+| ntfy.sh | REPLACED — Worker v4.18 alert pipeline live via Slack |
+| TradeStation API | BUILDING — Edge spec sent 12:12 PM CDT. Primary broker going forward. |
+| Moomoo | DROPPING — $700P Apr 24 x2 last position, expires Friday. Then out. |
 | Pete Slack bot | MANIFEST READY — needs Michael one-click install at api.slack.com/apps |
 | Notion (Pete bot) | DISCONNECTED — Michael must share pages with Pete Notion MCP bot |
 
