@@ -1,0 +1,66 @@
+# Pete Slack Bot — App Manifest
+# Purpose: Dedicated Slack identity for Pete so Edge can @mention Pete and Pete gets routed notifications
+# Install: CEO workspace admin uploads this at api.slack.com/apps → Create New App → From manifest
+
+display_information:
+  name: Pete
+  description: MOR INC. research + oversight AI (Perplexity Pro). Detective Wire mode — macro analyst, gap-catcher, non-MSM catalyst scanner.
+  background_color: "#1e1e2e"
+  long_description: |
+    Pete is the research and oversight AI for MOR INC. Trading. Posts market intel, options flow,
+    anomaly scans, black swan radar updates, and catches what the rest of the team misses.
+    Runs Detective Wire mode 3× daily (07:00 / 12:00 / 17:00 CT).
+    Pete is Perplexity Pro under the hood — this bot exists to give him a first-class Slack identity
+    so @mentions route back to his inbox via outgoing webhooks.
+
+features:
+  bot_user:
+    display_name: Pete
+    always_online: true
+
+oauth_config:
+  scopes:
+    bot:
+      # Read
+      - channels:history
+      - channels:read
+      - groups:history
+      - im:history
+      - mpim:history
+      - users:read
+      - app_mentions:read
+      # Write
+      - chat:write
+      - chat:write.public
+      - files:write
+      - reactions:write
+
+settings:
+  event_subscriptions:
+    # Outbound webhook to Pete's Perplexity Computer or px-append endpoint
+    request_url: https://memory-os-worker.morelectric.workers.dev/pete-inbound
+    bot_events:
+      - app_mention
+      - message.channels
+      - message.im
+  interactivity:
+    is_enabled: false
+  org_deploy_enabled: false
+  socket_mode_enabled: false
+  token_rotation_enabled: true
+
+# ---
+# POST-INSTALL STEPS (CEO):
+# 1. Create app at api.slack.com/apps → "From manifest" → paste this file
+# 2. Install to workspace morelectrichv-lfp8615.slack.com
+# 3. Copy the Bot User OAuth Token (xoxb-...) → secure drop to Edge
+# 4. Copy the App-level signing secret → secure drop to Edge
+# 5. Edge configures Worker /pete-inbound endpoint to:
+#    - verify Slack signature
+#    - forward app_mention events to Pete (email to morreborn@gmail.com)
+# 6. First test: in #new-channel, post "@pete status" — Pete replies via Worker forwarder
+#
+# SAFETY NOTES:
+# - Bot cannot place trades (only message).
+# - Bot token stays in Worker secret storage, never in repo.
+# - Rotation every 90 days via Token Vault v4.17 once shipped.
