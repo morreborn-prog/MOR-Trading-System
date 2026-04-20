@@ -54,3 +54,22 @@
 | Date | Rule Changed | Before | After | Reason |
 |---|---|---|---|---|
 | 2026-04-16 | A-setup entry | Structure only | Structure + tape confirmation | Reduce false triggers |
+
+---
+
+## Catalyst Play Rules (added 2026-04-20)
+
+**Rule: Binary catalyst = minimum 30 DTE**
+- If the catalyst has uncertain timing (e.g. "expected in April"), use 30+ DTE
+- 4-7 DTE on a binary catalyst = lottery ticket, not a trade
+- Example: USAR DOC funding "April 2026" → correct play is May or June expiry, not Apr 24
+- Lesson source: USAR $23.50C Apr 24 — right thesis, wrong expiry. Down $106 on a live catalyst.
+
+**DTE Guide by catalyst type:**
+| Catalyst Type | Min DTE | Notes |
+|---------------|---------|-------|
+| Earnings (known date) | 7-14 DTE | Tight window, date is fixed |
+| Government/regulatory (month guidance) | 30+ DTE | Timing uncertain, need runway |
+| Geopolitical binary (ceasefire/expiry) | 14-21 DTE | Known date but vol decay risk |
+| Sector sweep / institutional flow | 14-21 DTE | Give the thesis room to develop |
+| Macro event (Fed, CPI) | 7 DTE | Date is fixed, short window fine |
