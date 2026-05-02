@@ -3,7 +3,24 @@
 ## Cursor Cloud specific instructions
 
 ### Overview
-This repo is the **MOR Master Trading System** — a coordination hub for an AI-orchestrated stock/options trading pipeline. It is primarily Markdown documentation, Python automation scripts, and GitHub Actions workflows. There is no frontend application to build or serve.
+This repo is the **MOR Master Trading System** — a coordination hub for an AI-orchestrated stock/options trading pipeline. It contains:
+- **Python automation scripts** (`scripts/`) — the 15-minute pipeline
+- **React dashboard** (`dashboard/`) — live trading dashboard (Vite + React + TailwindCSS v4)
+- **Markdown documentation** — specs, logs, coordination, rulebook
+
+### Dashboard (React app)
+```bash
+cd dashboard && npm run dev    # Starts Vite dev server on http://localhost:5173
+cd dashboard && npm run build  # Production build to dashboard/dist/
+cd dashboard && npm run lint   # ESLint
+```
+To connect to Alpaca, create `dashboard/.env`:
+```
+VITE_ALPACA_API_KEY=your_key
+VITE_ALPACA_SECRET_KEY=your_secret
+VITE_ALPACA_BASE_URL=https://paper-api.alpaca.markets
+```
+Without these env vars the dashboard still loads — panels show placeholder/empty state.
 
 ### Running the pipeline scripts
 The three Python scripts in `scripts/` form the 15-minute automation pipeline (mirroring `.github/workflows/mor_15min_loop.yml`):
@@ -25,7 +42,5 @@ flake8 scripts/ --max-line-length=120
 The existing scripts have pre-existing style warnings (unused imports, whitespace). These are cosmetic and do not affect execution.
 
 ### Dependencies
-Only two pip packages are needed: `requests` and `python-dateutil`. The update script installs them automatically.
-
-### No build step
-There is no build, compile, or bundle step. The repo has no `package.json`, `Dockerfile`, or `requirements.txt`. Dependencies are installed inline (see update script).
+- **Python:** `requests`, `python-dateutil` (installed by update script)
+- **Dashboard:** Node.js 20+, dependencies in `dashboard/package.json` (installed by update script via `npm install`)
