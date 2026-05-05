@@ -4,6 +4,26 @@
 
 ---
 
+## ⚠️ STANDING SYSTEM RULE — CONNECTOR INTEGRITY (Pete / CEO Order — 2026-05-05)
+
+**ALL connectors are expected to be LIVE and WORKING at ALL times.**
+This is not optional. Connectors that have been working include:
+- Notion MCP
+- GitHub MCP
+- Slack MCP
+- TradingView / Bridge
+- Any broker API (TradeStation, Coinbase, etc.)
+
+**If ANY connector fails to respond, is unavailable, or returns errors:**
+1. 🔴 FLAG IT IMMEDIATELY — do not proceed as if it is normal
+2. LOG IT in Slack (C0AC8UQJT54) with timestamp and what failed
+3. STOP any dependent tasks until it is resolved or workaround is confirmed by Michael
+4. Do NOT silently skip Notion reads, memory checks, or context loads because a connector is down — that degrades system integrity
+
+> "Any connector not working is a problem. They are all supposed to be working and have been working." — Michael O'Regan, CEO, 2026-05-05
+
+---
+
 ## 1. Current Regime
 **Macro:** Risk-off. Iran/Hormuz unresolved. Islamabad talks ongoing — ceasefire deadline April 21 = RTX earnings day. SPY at all-time-high complacency ($710). Oil bid.
 **Thesis:** Long volatility. Hold UVIX. SPY $703P expires Monday — Iran binary. GLD only confirmed winner.
