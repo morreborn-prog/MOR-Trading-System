@@ -23,11 +23,11 @@ jobs:
       - name: Install dependencies
         run: pip install requests python-dateutil
 
-      - name: Pull Alpaca fills and update session log
+      - name: Pull Tradier fills and update session log
         env:
-          ALPACA_API_KEY: ${{ secrets.ALPACA_API_KEY }}
-          ALPACA_SECRET_KEY: ${{ secrets.ALPACA_SECRET_KEY }}
-        run: python scripts/pull_alpaca_fills.py
+          TRADIER_TOKEN: ${{ secrets.TRADIER_TOKEN }}
+          TRADIER_ACCOUNT_ID: ${{ secrets.TRADIER_ACCOUNT_ID }}
+        run: python scripts/pull_tradier_fills.py
 
       - name: Update worker accuracy scores
         run: python scripts/score_workers.py

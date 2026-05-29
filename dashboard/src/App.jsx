@@ -1,8 +1,12 @@
 import { useState, useEffect, useCallback } from 'react'
 
-const ALPACA_KEY = import.meta.env.VITE_ALPACA_API_KEY || ''
-const ALPACA_SECRET = import.meta.env.VITE_ALPACA_SECRET_KEY || ''
-const ALPACA_BASE = import.meta.env.VITE_ALPACA_BASE_URL || 'https://paper-api.alpaca.markets'
+const TRADIER_TOKEN = import.meta.env.VITE_TRADIER_TOKEN || ''
+const TRADIER_ACCOUNT = import.meta.env.VITE_TRADIER_ACCOUNT_ID || ''
+const TRADIER_BASE = import.meta.env.VITE_TRADIER_BASE_URL || 'https://api.tradier.com'
+
+const COINBASE_KEY = import.meta.env.VITE_COINBASE_API_KEY || ''
+const COINBASE_SECRET = import.meta.env.VITE_COINBASE_API_SECRET || ''
+const COINBASE_BASE = 'https://api.coinbase.com'
 
 const REFRESH_MS = 15 * 60 * 1000
 
@@ -28,41 +32,51 @@ function Panel({ title, icon, children }) {
   )
 }
 
-function AccountSummary({ account, positions }) {
-  if (!account) {
+function BrokerBadge({ name, connected }) {
+  return (
+    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium ${connected ? 'bg-emerald-900/50 text-emerald-300' : 'bg-zinc-800 text-zinc-500'}`}>
+      <span className={`w-1.5 h-1.5 rounded-full ${connected ? 'bg-emerald-400' : 'bg-zinc-600'}`} />
+      {name}
+    </span>
+  )
+}
+
+function TradierAccount({ balances, positions }) {
+  if (!balances && !TRADIER_TOKEN) {
     return (
-      <Panel title="Account Summary" icon="💰">
+      <Panel title="Tradier — Options & Stocks" icon="📊">
         <p className="text-zinc-500 text-sm italic">
-          {ALPACA_KEY ? 'Loading...' : 'Set VITE_ALPACA_API_KEY and VITE_ALPACA_SECRET_KEY in .env to connect'}
+          Set VITE_TRADIER_TOKEN and VITE_TRADIER_ACCOUNT_ID in .env to connect
         </p>
       </Panel>
     )
   }
-  const equity = parseFloat(account.equity)
-  const bp = parseFloat(account.buying_power)
-  const dailyPl = parseFloat(account.equity) - parseFloat(account.last_equity)
-  const dailyPct = (dailyPl / parseFloat(account.last_equity)) * 100
+  if (!balances) {
+    return (
+      <Panel title="Tradier — Options & Stocks" icon="📊">
+        <p className="text-zinc-500 text-sm italic">Loading...</p>
+      </Panel>
+    )
+  }
+
+  const equity = balances.total_equity || balances.account_value || 0
+  const cash = balances.total_cash || balances.cash?.cash_available || 0
+  const marketValue = balances.market_value || 0
 
   return (
-    <Panel title="Account Summary" icon="💰">
-      <div className="grid grid-cols-2 gap-4">
+    <Panel title="Tradier — Options & Stocks" icon="📊">
+      <div className="grid grid-cols-3 gap-4">
         <div>
           <div className="text-xs text-zinc-500">Equity</div>
           <div className="text-2xl font-bold text-white">{formatUSD(equity)}</div>
         </div>
         <div>
-          <div className="text-xs text-zinc-500">Buying Power</div>
-          <div className="text-2xl font-bold text-white">{formatUSD(bp)}</div>
+          <div className="text-xs text-zinc-500">Cash</div>
+          <div className="text-xl font-bold text-white">{formatUSD(cash)}</div>
         </div>
         <div>
-          <div className="text-xs text-zinc-500">Daily P&L</div>
-          <div className={`text-xl font-bold ${pctClass(dailyPl)}`}>
-            {formatUSD(dailyPl)} ({dailyPct.toFixed(2)}%)
-          </div>
-        </div>
-        <div>
-          <div className="text-xs text-zinc-500">Open Positions</div>
-          <div className="text-xl font-bold text-white">{positions.length}</div>
+          <div className="text-xs text-zinc-500">Market Value</div>
+          <div className="text-xl font-bold text-white">{formatUSD(marketValue)}</div>
         </div>
       </div>
       {positions.length > 0 && (
@@ -72,21 +86,19 @@ function AccountSummary({ account, positions }) {
               <tr className="text-zinc-500 border-b border-zinc-800">
                 <th className="text-left py-1">Symbol</th>
                 <th className="text-right py-1">Qty</th>
-                <th className="text-right py-1">Avg Entry</th>
-                <th className="text-right py-1">Current</th>
-                <th className="text-right py-1">P&L</th>
+                <th className="text-right py-1">Cost Basis</th>
+                <th className="text-right py-1">Gain/Loss</th>
               </tr>
             </thead>
             <tbody>
-              {positions.map(p => {
-                const pl = parseFloat(p.unrealized_pl)
+              {positions.map((p, i) => {
+                const gl = (p.quantity * (p.last_price || 0)) - p.cost_basis
                 return (
-                  <tr key={p.asset_id} className="border-b border-zinc-800/50">
+                  <tr key={p.symbol || i} className="border-b border-zinc-800/50">
                     <td className="py-1 font-medium text-white">{p.symbol}</td>
-                    <td className="text-right py-1 text-zinc-300">{p.qty}</td>
-                    <td className="text-right py-1 text-zinc-300">{formatUSD(parseFloat(p.avg_entry_price))}</td>
-                    <td className="text-right py-1 text-zinc-300">{formatUSD(parseFloat(p.current_price))}</td>
-                    <td className={`text-right py-1 font-medium ${pctClass(pl)}`}>{formatUSD(pl)}</td>
+                    <td className="text-right py-1 text-zinc-300">{p.quantity}</td>
+                    <td className="text-right py-1 text-zinc-300">{formatUSD(p.cost_basis)}</td>
+                    <td className={`text-right py-1 font-medium ${pctClass(gl)}`}>{formatUSD(gl)}</td>
                   </tr>
                 )
               })}
@@ -94,27 +106,90 @@ function AccountSummary({ account, positions }) {
           </table>
         </div>
       )}
+      {positions.length === 0 && (
+        <p className="text-zinc-500 text-xs italic">No open positions</p>
+      )}
     </Panel>
   )
 }
 
-function SessionPL({ orders }) {
-  const wins = orders.filter(o => parseFloat(o.filled_avg_price) > 0 && o.side === 'sell')
-  const totalTrades = orders.length
+function CoinbaseAccount({ accounts }) {
+  if (!accounts && !COINBASE_KEY) {
+    return (
+      <Panel title="Coinbase — Crypto" icon="₿">
+        <p className="text-zinc-500 text-sm italic">
+          Set VITE_COINBASE_API_KEY and VITE_COINBASE_API_SECRET in .env to connect
+        </p>
+      </Panel>
+    )
+  }
+  if (!accounts) {
+    return (
+      <Panel title="Coinbase — Crypto" icon="₿">
+        <p className="text-zinc-500 text-sm italic">Loading...</p>
+      </Panel>
+    )
+  }
+
+  const nonZero = accounts.filter(a => parseFloat(a.available_balance?.value || 0) > 0)
+  const totalValue = nonZero.reduce((sum, a) => sum + parseFloat(a.available_balance?.value || 0), 0)
+
   return (
-    <Panel title="Session P&L" icon="📈">
-      <div className="grid grid-cols-3 gap-4">
+    <Panel title="Coinbase — Crypto" icon="₿">
+      <div className="grid grid-cols-2 gap-4">
         <div>
-          <div className="text-xs text-zinc-500">Trades Today</div>
-          <div className="text-xl font-bold text-white">{totalTrades}</div>
+          <div className="text-xs text-zinc-500">Total Holdings</div>
+          <div className="text-2xl font-bold text-white">{formatUSD(totalValue)}</div>
         </div>
         <div>
-          <div className="text-xs text-zinc-500">Filled Orders</div>
+          <div className="text-xs text-zinc-500">Active Assets</div>
+          <div className="text-xl font-bold text-white">{nonZero.length}</div>
+        </div>
+      </div>
+      {nonZero.length > 0 && (
+        <div className="mt-2 overflow-x-auto">
+          <table className="w-full text-xs">
+            <thead>
+              <tr className="text-zinc-500 border-b border-zinc-800">
+                <th className="text-left py-1">Asset</th>
+                <th className="text-right py-1">Balance</th>
+                <th className="text-right py-1">Value (USD)</th>
+              </tr>
+            </thead>
+            <tbody>
+              {nonZero.slice(0, 10).map(a => (
+                <tr key={a.uuid} className="border-b border-zinc-800/50">
+                  <td className="py-1 font-medium text-white">{a.currency || a.name}</td>
+                  <td className="text-right py-1 text-zinc-300">{parseFloat(a.available_balance?.value || 0).toFixed(6)}</td>
+                  <td className="text-right py-1 text-zinc-300">{formatUSD(parseFloat(a.available_balance?.value || 0))}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+      {nonZero.length === 0 && (
+        <p className="text-zinc-500 text-xs italic">No crypto holdings</p>
+      )}
+    </Panel>
+  )
+}
+
+function TradierOrders({ orders }) {
+  return (
+    <Panel title="Session Orders — Tradier" icon="📈">
+      <div className="grid grid-cols-3 gap-4">
+        <div>
+          <div className="text-xs text-zinc-500">Orders Today</div>
+          <div className="text-xl font-bold text-white">{orders.length}</div>
+        </div>
+        <div>
+          <div className="text-xs text-zinc-500">Filled</div>
           <div className="text-xl font-bold text-white">{orders.filter(o => o.status === 'filled').length}</div>
         </div>
         <div>
-          <div className="text-xs text-zinc-500">Closed Orders</div>
-          <div className="text-xl font-bold text-white">{wins.length}</div>
+          <div className="text-xs text-zinc-500">Pending</div>
+          <div className="text-xl font-bold text-white">{orders.filter(o => o.status === 'pending' || o.status === 'open').length}</div>
         </div>
       </div>
       {orders.length > 0 ? (
@@ -125,7 +200,7 @@ function SessionPL({ orders }) {
                 <th className="text-left py-1">Symbol</th>
                 <th className="text-left py-1">Side</th>
                 <th className="text-right py-1">Qty</th>
-                <th className="text-right py-1">Avg Price</th>
+                <th className="text-right py-1">Price</th>
                 <th className="text-left py-1">Status</th>
               </tr>
             </thead>
@@ -133,9 +208,11 @@ function SessionPL({ orders }) {
               {orders.map((o, i) => (
                 <tr key={o.id || i} className="border-b border-zinc-800/50">
                   <td className="py-1 font-medium text-white">{o.symbol}</td>
-                  <td className={`py-1 ${o.side === 'buy' ? 'text-emerald-400' : 'text-red-400'}`}>{o.side?.toUpperCase()}</td>
-                  <td className="text-right py-1 text-zinc-300">{o.filled_qty || o.qty}</td>
-                  <td className="text-right py-1 text-zinc-300">{formatUSD(parseFloat(o.filled_avg_price))}</td>
+                  <td className={`py-1 ${o.side === 'buy' || o.side === 'buy_to_open' ? 'text-emerald-400' : 'text-red-400'}`}>
+                    {o.side?.toUpperCase().replace(/_/g, ' ')}
+                  </td>
+                  <td className="text-right py-1 text-zinc-300">{o.quantity}</td>
+                  <td className="text-right py-1 text-zinc-300">{formatUSD(o.avg_fill_price || o.price || 0)}</td>
                   <td className="py-1 text-zinc-400">{o.status}</td>
                 </tr>
               ))}
@@ -143,7 +220,7 @@ function SessionPL({ orders }) {
           </table>
         </div>
       ) : (
-        <p className="text-zinc-500 text-sm italic">No orders today</p>
+        <p className="text-zinc-500 text-sm italic">No orders this session</p>
       )}
     </Panel>
   )
@@ -195,7 +272,8 @@ function WorkerScoreboard() {
 }
 
 const RULES_LOG = [
-  { date: '2026-04-20', rule: 'Catalyst Play Rules', change: 'Added — binary catalyst = min 30 DTE' },
+  { date: '2026-05-05', rule: 'Connector Integrity', change: 'ALL connectors must be LIVE — flag immediately if any fails' },
+  { date: '2026-04-20', rule: 'Catalyst Play Rules', change: 'Binary catalyst = minimum 30 DTE' },
   { date: '2026-04-16', rule: 'A-setup entry', change: 'Structure only → Structure + tape confirmation' },
 ]
 
@@ -262,65 +340,104 @@ function TomorrowPrep() {
   )
 }
 
-function StatusBar({ lastRefresh, error }) {
+function StatusBar({ lastRefresh, tradierOk, coinbaseOk, errors }) {
+  const anyError = errors.length > 0
   return (
-    <div className="flex items-center gap-4 text-xs text-zinc-500">
-      <span className={`inline-block w-2 h-2 rounded-full ${error ? 'bg-red-400' : 'bg-emerald-400'}`} />
-      <span>{error ? `Error: ${error}` : 'Connected'}</span>
-      <span>Last refresh: {lastRefresh ? lastRefresh.toLocaleTimeString() : '—'}</span>
-      <span>Auto-refresh: 15 min</span>
+    <div className="flex items-center gap-3 text-xs text-zinc-500 flex-wrap">
+      <BrokerBadge name="Tradier" connected={tradierOk} />
+      <BrokerBadge name="Coinbase" connected={coinbaseOk} />
+      <span className={`inline-block w-2 h-2 rounded-full ${anyError ? 'bg-red-400' : 'bg-emerald-400'}`} />
+      <span>{anyError ? errors[0] : 'All systems OK'}</span>
+      <span>Refresh: {lastRefresh ? lastRefresh.toLocaleTimeString() : '—'}</span>
     </div>
   )
 }
 
 export default function App() {
-  const [account, setAccount] = useState(null)
-  const [positions, setPositions] = useState([])
-  const [orders, setOrders] = useState([])
+  const [tradierBalances, setTradierBalances] = useState(null)
+  const [tradierPositions, setTradierPositions] = useState([])
+  const [tradierOrders, setTradierOrders] = useState([])
+  const [coinbaseAccounts, setCoinbaseAccounts] = useState(null)
   const [lastRefresh, setLastRefresh] = useState(null)
-  const [error, setError] = useState(null)
+  const [errors, setErrors] = useState([])
 
-  const fetchAlpaca = useCallback(async () => {
-    if (!ALPACA_KEY || !ALPACA_SECRET) return
+  const fetchTradier = useCallback(async () => {
+    if (!TRADIER_TOKEN || !TRADIER_ACCOUNT) return false
     const headers = {
-      'APCA-API-KEY-ID': ALPACA_KEY,
-      'APCA-API-SECRET-KEY': ALPACA_SECRET,
+      'Authorization': `Bearer ${TRADIER_TOKEN}`,
+      'Accept': 'application/json',
     }
     try {
-      const [accRes, posRes, ordRes] = await Promise.all([
-        fetch(`${ALPACA_BASE}/v2/account`, { headers }),
-        fetch(`${ALPACA_BASE}/v2/positions`, { headers }),
-        fetch(`${ALPACA_BASE}/v2/orders?status=closed&after=${new Date().toISOString().slice(0, 10)}T00:00:00Z&limit=100`, { headers }),
+      const [balRes, posRes, ordRes] = await Promise.all([
+        fetch(`${TRADIER_BASE}/v1/accounts/${TRADIER_ACCOUNT}/balances`, { headers }),
+        fetch(`${TRADIER_BASE}/v1/accounts/${TRADIER_ACCOUNT}/positions`, { headers }),
+        fetch(`${TRADIER_BASE}/v1/accounts/${TRADIER_ACCOUNT}/orders`, { headers }),
       ])
-      if (!accRes.ok) throw new Error(`Account: ${accRes.status}`)
-      setAccount(await accRes.json())
-      setPositions(posRes.ok ? await posRes.json() : [])
-      setOrders(ordRes.ok ? await ordRes.json() : [])
-      setError(null)
-      setLastRefresh(new Date())
+      if (!balRes.ok) throw new Error(`Tradier: ${balRes.status}`)
+      const balData = await balRes.json()
+      setTradierBalances(balData.balances || balData)
+
+      const posData = posRes.ok ? await posRes.json() : {}
+      const rawPos = posData.positions?.position
+      setTradierPositions(Array.isArray(rawPos) ? rawPos : rawPos ? [rawPos] : [])
+
+      const ordData = ordRes.ok ? await ordRes.json() : {}
+      const rawOrd = ordData.orders?.order
+      setTradierOrders(Array.isArray(rawOrd) ? rawOrd : rawOrd ? [rawOrd] : [])
+      return true
     } catch (e) {
-      setError(e.message)
+      return false
     }
   }, [])
 
+  const fetchCoinbase = useCallback(async () => {
+    if (!COINBASE_KEY || !COINBASE_SECRET) return false
+    const headers = {
+      'Content-Type': 'application/json',
+    }
+    try {
+      const res = await fetch(`${COINBASE_BASE}/api/v3/brokerage/accounts?limit=50`, { headers })
+      if (!res.ok) throw new Error(`Coinbase: ${res.status}`)
+      const data = await res.json()
+      setCoinbaseAccounts(data.accounts || [])
+      return true
+    } catch (e) {
+      return false
+    }
+  }, [])
+
+  const refresh = useCallback(async () => {
+    const errs = []
+    const tradierOk = await fetchTradier()
+    const coinbaseOk = await fetchCoinbase()
+    if (TRADIER_TOKEN && !tradierOk) errs.push('Tradier connection failed')
+    if (COINBASE_KEY && !coinbaseOk) errs.push('Coinbase connection failed')
+    setErrors(errs)
+    setLastRefresh(new Date())
+  }, [fetchTradier, fetchCoinbase])
+
   useEffect(() => {
-    fetchAlpaca()
-    const id = setInterval(fetchAlpaca, REFRESH_MS)
+    refresh()
+    const id = setInterval(refresh, REFRESH_MS)
     return () => clearInterval(id)
-  }, [fetchAlpaca])
+  }, [refresh])
+
+  const tradierOk = !!tradierBalances
+  const coinbaseOk = !!coinbaseAccounts
 
   return (
     <div className="min-h-screen bg-zinc-950 text-white">
       <header className="border-b border-zinc-800 px-6 py-4 flex items-center justify-between">
         <div>
           <h1 className="text-xl font-bold tracking-tight">MOR Trading Dashboard</h1>
-          <p className="text-xs text-zinc-500">MOR Trading Systems — Live System Health</p>
+          <p className="text-xs text-zinc-500">MOR Trading Systems — Tradier + Coinbase</p>
         </div>
-        <StatusBar lastRefresh={lastRefresh} error={error} />
+        <StatusBar lastRefresh={lastRefresh} tradierOk={tradierOk} coinbaseOk={coinbaseOk} errors={errors} />
       </header>
       <main className="p-6 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5 max-w-7xl mx-auto">
-        <AccountSummary account={account} positions={positions} />
-        <SessionPL orders={orders} />
+        <TradierAccount balances={tradierBalances} positions={tradierPositions} />
+        <CoinbaseAccount accounts={coinbaseAccounts} />
+        <TradierOrders orders={tradierOrders} />
         <WorkerScoreboard />
         <ActiveSetups />
         <TomorrowPrep />
