@@ -66,23 +66,27 @@ This is not optional. Connectors that have been working include:
 
 ---
 
-## 5. Last Session Summary (2026-04-19 Full Day)
-Pete and Edge ran a full build day. Key completions: Worker v4.15→v4.16, all 7 secrets green, GitHub repo public, Slack comms live between Pete+Edge, Pine Scripts v3/v4/v5 written, Monday pre-market brief delivered, RTX/MRVL/USO/META analyzed, Iran intel confirmed ($20B uranium deal live in Islamabad), Alpaca keys set, GitHub Actions pipeline green, Notion audit done. Infrastructure fix session started 15:30 CT — GitHub invite fixed, MOR_STATE.md created.
+## 5. Last Session Summary (2026-05-31 — Edge Infrastructure Build)
+Edge (Cursor Cloud) completed broker migration. Dashboard now runs from this repo with Tradier (options/stocks) + Coinbase (crypto). Alpaca deprecated. PR #3 merged. CEO inbox summary delivered.
 
-**Open items going into Monday:**
-- SPY $703P — sell at open or hold for Iran catalyst
-- USO stop rule — undefined, needs number before open
-- UVIX calls — hold, add, or cut decision
-- 3 missing brokers — connect at perplexity.ai/finance/portfolio
-- mcp-optionsflow — Edge to deploy
-- Chat GitHub handle — need from Michael
-- Notion Command Center pages — Michael shares with Pete MCP bot
+**Completed:**
+- Dashboard rewritten: 7 panels, Tradier + Coinbase integration
+- `pull_tradier_fills.py` replaces Alpaca in 15-min GitHub Actions loop
+- AGENTS.md updated with new broker docs
+
+**Open items:**
+- Michael adds `TRADIER_TOKEN` + `TRADIER_ACCOUNT_ID` to GitHub secrets
+- Michael adds Coinbase API keys for dashboard crypto panel
+- Dashboard Vercel deployment (not yet done)
+- Scalp Watch worker → dashboard panel connection
+- Session-end ritual automation (Worker endpoint)
 
 ---
 
 ## 6. Older Sessions (Compressed)
+- 2026-05-02: Edge (Cursor Cloud) initial dev environment setup. Dashboard v1 built (Alpaca). PR #1 merged.
+- 2026-04-19: Pete + Edge full build day. Worker v4.15→v4.16, all 7 secrets green, GitHub repo public, Slack comms live, Pine Scripts written, Notion audit done.
 - 2026-04-16: Session log in logs/2026-04-16_session_log.md. Alpaca paper setup, early pipeline work.
-- 2026-04-19 morning: NotebookLM rebuilt, Notion workspace audited, Alpaca live keys set in GitHub Secrets.
 
 ---
 
