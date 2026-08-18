@@ -95,6 +95,26 @@ function shallowEqual(a, b) {
   return true
 }
 
+function samePositions(a, b) {
+  if (a === b) return true
+  if (!Array.isArray(a) || !Array.isArray(b) || a.length !== b.length) return false
+  return a.every((item, index) => {
+    const other = b[index]
+    if (!item || !other) return item === other
+    return item.symbol === other.symbol && item.qty === other.qty && item.cost === other.cost && item.value === other.value
+  })
+}
+
+function sameHistory(a, b) {
+  if (a === b) return true
+  if (!Array.isArray(a) || !Array.isArray(b) || a.length !== b.length) return false
+  return a.every((item, index) => {
+    const other = b[index]
+    if (!item || !other) return item === other
+    return item.date === other.date && item.type === other.type && item.symbol === other.symbol && item.amount === other.amount
+  })
+}
+
 // browser fetch with timeout via AbortController
 async function fetchWithTimeout(url, opts = {}, ms = 8000) {
   const controller = new AbortController()
@@ -182,7 +202,7 @@ const TradeHistory = memo(function TradeHistory({ history }) {
             </thead>
             <tbody>
               {history.slice(0, 10).map((h, i) => (
-                <tr key={`${h.date}-${h.symbol || i}`} className="border-b border-zinc-800/50">
+                <tr key={`${h.date}-${h.symbol || 'na'}-${h.type || 'trade'}-${h.amount || '0'}-${i}`} className="border-b border-zinc-800/50">
                   <td className="py-1 text-zinc-400">{h.date}</td>
                   <td className="py-1 text-zinc-300">{h.type}</td>
                   <td className="py-1 font-medium text-white font-mono text-[11px]">{h.symbol || '—'}</td>
@@ -346,30 +366,32 @@ export default function App() {
   const refresh = useCallback(async () => {
     setLoading(true)
     try {
-      const [balRes, posRes, histRes, healthRes] = await Promise.all([
+      const [balRes, posRes, histRes, healthRes] = await Promise.allSettled([
         fetchWithTimeout(`${WORKER_BASE}/tradier?action=balances&secret=${WORKER_SECRET}`),
         fetchWithTimeout(`${WORKER_BASE}/tradier?action=positions&secret=${WORKER_SECRET}`),
         fetchWithTimeout(`${WORKER_BASE}/tradier?action=history&secret=${WORKER_SECRET}`),
         fetchWithTimeout(`${WORKER_BASE}/diag`),
       ])
 
-      if (balRes && balRes.ok) {
-        const next = parseBalances(await balRes.text())
+      const balResult = balRes.status === 'fulfilled' ? balRes.value : null
+      const posResult = posRes.status === 'fulfilled' ? posRes.value : null
+      const histResult = histRes.status === 'fulfilled' ? histRes.value : null
+      const healthResult = healthRes.status === 'fulfilled' ? healthRes.value : null
+
+      if (balResult && balResult.ok) {
+        const next = parseBalances(await balResult.text())
         setBalances(prev => shallowEqual(prev || {}, next || {}) ? prev : next)
       }
-      if (posRes && posRes.ok) {
-        const next = parsePositions(await posRes.text())
-        setPositions(prev => {
-          if (Array.isArray(prev) && prev.length === next.length && prev.every((v,i)=>v.symbol===next[i].symbol && v.value===next[i].value)) return prev
-          return next
-        })
+      if (posResult && posResult.ok) {
+        const next = parsePositions(await posResult.text())
+        setPositions(prev => (samePositions(prev, next) ? prev : next))
       }
-      if (histRes && histRes.ok) {
-        const next = parseHistory(await histRes.text())
-        setHistory(prev => JSON.stringify(prev) === JSON.stringify(next) ? prev : next)
+      if (histResult && histResult.ok) {
+        const next = parseHistory(await histResult.text())
+        setHistory(prev => (sameHistory(prev, next) ? prev : next))
       }
-      if (healthRes && healthRes.ok) {
-        const next = await healthRes.json()
+      if (healthResult && healthResult.ok) {
+        const next = await healthResult.json()
         setHealth(prev => shallowEqual(prev || {}, next || {}) ? prev : next)
       }
 
