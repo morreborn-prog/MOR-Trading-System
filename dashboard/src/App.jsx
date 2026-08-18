@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, memo } from 'react'
 
 const WORKER_BASE = import.meta.env.VITE_WORKER_URL || 'https://memory-os-worker.morelectric.workers.dev'
 const WORKER_SECRET = import.meta.env.VITE_WORKER_SECRET || 'px-mor-trading-2026'
@@ -46,7 +46,68 @@ function parseMarkdownTable(md) {
   }).filter(Boolean)
 }
 
-function TradierAccount({ balances, positions, loading }) {
+// --- Parsing helpers (moved to top-level to avoid re-creation on each render)
+function parseBalances(md) {
+  if (!md) return {}
+  const lines = md.split('\n')
+  const get = (label) => {
+    const line = lines.find(l => l.includes(label))
+    return line ? line.split(label)[1]?.replace(/[*:]/g, '').trim() : null
+  }
+  const accountLine = lines.find(l => l.includes('Account:'))
+  return {
+    equity: get('Total Equity:'),
+    cash: get('Cash Available:'),
+    optionBp: get('Option BP:'),
+    account: accountLine?.match(/Account:\s*(\S+)/)?.[1] || '',
+  }
+}
+
+function parsePositions(md) {
+  if (!md) return []
+  const lines = md.split('\n').filter(l => l.startsWith('- **'))
+  return lines.map(line => {
+    const match = line.match(/\*\*(.+?)\*\*\s*\|\s*Qty:\s*(\S+)\s*\|\s*Cost:\s*(\S+)\s*\|\s*Value:\s*(\S+)/)
+    if (!match) return null
+    return { symbol: match[1], qty: match[2], cost: match[3], value: match[4] }
+  }).filter(Boolean)
+}
+
+function parseHistory(md) {
+  if (!md) return []
+  const lines = md.split('\n').filter(l => l.startsWith('- **'))
+  return lines.map(line => {
+    const match = line.match(/\*\*(.+?)\*\*\s*\|\s*(\S+)\s*\|\s*(.*?)\s*\|\s*(\S+)/)
+    if (!match) return null
+    return { date: match[1].slice(0, 10), type: match[2], symbol: match[3].trim(), amount: match[4] }
+  }).filter(Boolean)
+}
+
+function shallowEqual(a, b) {
+  if (a === b) return true
+  if (!a || !b) return false
+  const ka = Object.keys(a)
+  const kb = Object.keys(b)
+  if (ka.length !== kb.length) return false
+  for (let k of ka) {
+    if (a[k] !== b[k]) return false
+  }
+  return true
+}
+
+// browser fetch with timeout via AbortController
+async function fetchWithTimeout(url, opts = {}, ms = 8000) {
+  const controller = new AbortController()
+  const id = setTimeout(() => controller.abort(), ms)
+  try {
+    const res = await fetch(url, { ...opts, signal: controller.signal })
+    return res
+  } finally {
+    clearTimeout(id)
+  }
+}
+
+const TradierAccount = memo(function TradierAccount({ balances, positions, loading }) {
   if (loading) {
     return (
       <Panel title="Tradier — Options & Stocks" icon="📊">
@@ -84,7 +145,7 @@ function TradierAccount({ balances, positions, loading }) {
             </thead>
             <tbody>
               {positions.map((p, i) => (
-                <tr key={i} className="border-b border-zinc-800/50">
+                <tr key={p.symbol || i} className="border-b border-zinc-800/50">
                   <td className="py-1 font-medium text-white font-mono text-[11px]">{p.symbol}</td>
                   <td className="text-right py-1 text-zinc-300">{p.qty}</td>
                   <td className="text-right py-1 text-zinc-300">{p.cost}</td>
@@ -101,9 +162,11 @@ function TradierAccount({ balances, positions, loading }) {
       <div className="text-[10px] text-zinc-600 mt-1">Account: {balances.account || '—'}</div>
     </Panel>
   )
-}
+}, (a, b) => {
+  return shallowEqual(a.balances || {}, b.balances || {}) && a.loading === b.loading && JSON.stringify(a.positions || []) === JSON.stringify(b.positions || [])
+})
 
-function TradeHistory({ history }) {
+const TradeHistory = memo(function TradeHistory({ history }) {
   return (
     <Panel title="Recent Trades" icon="📈">
       {history.length > 0 ? (
@@ -119,7 +182,7 @@ function TradeHistory({ history }) {
             </thead>
             <tbody>
               {history.slice(0, 10).map((h, i) => (
-                <tr key={i} className="border-b border-zinc-800/50">
+                <tr key={`${h.date}-${h.symbol || i}`} className="border-b border-zinc-800/50">
                   <td className="py-1 text-zinc-400">{h.date}</td>
                   <td className="py-1 text-zinc-300">{h.type}</td>
                   <td className="py-1 font-medium text-white font-mono text-[11px]">{h.symbol || '—'}</td>
@@ -134,9 +197,9 @@ function TradeHistory({ history }) {
       )}
     </Panel>
   )
-}
+}, (a, b) => JSON.stringify(a.history || []) === JSON.stringify(b.history || []))
 
-function WorkerHealth({ health }) {
+const WorkerHealth = memo(function WorkerHealth({ health }) {
   if (!health) return null
   return (
     <Panel title="System Health" icon="🏥">
@@ -174,7 +237,7 @@ function WorkerHealth({ health }) {
       </div>
     </Panel>
   )
-}
+}, (a, b) => shallowEqual(a.health || {}, b.health || {}))
 
 const WORKERS = [
   { name: 'SPY VWAP Bias', type: 'Primary', status: 'Active' },
@@ -187,7 +250,7 @@ const WORKERS = [
   { name: 'Tape Pressure', type: 'Confirmation', status: 'Active' },
 ]
 
-function WorkerScoreboard() {
+const WorkerScoreboard = memo(function WorkerScoreboard() {
   return (
     <Panel title="Worker Scoreboard" icon="🤖">
       <div className="overflow-x-auto">
@@ -215,7 +278,7 @@ function WorkerScoreboard() {
       </div>
     </Panel>
   )
-}
+})
 
 const RULES_LOG = [
   { date: '2026-05-05', rule: 'Connector Integrity', change: 'ALL connectors must be LIVE — flag immediately if any fails' },
@@ -223,7 +286,7 @@ const RULES_LOG = [
   { date: '2026-04-16', rule: 'A-setup entry', change: 'Structure only → Structure + tape confirmation' },
 ]
 
-function RuleChangeFeed() {
+const RuleChangeFeed = memo(function RuleChangeFeed() {
   return (
     <Panel title="Rule Change Feed" icon="📜">
       <div className="space-y-2">
@@ -239,9 +302,9 @@ function RuleChangeFeed() {
       </div>
     </Panel>
   )
-}
+})
 
-function ActiveSetups() {
+const ActiveSetups = memo(function ActiveSetups() {
   return (
     <Panel title="Active Setups" icon="🎯">
       <div className="space-y-2">
@@ -256,7 +319,7 @@ function ActiveSetups() {
       </div>
     </Panel>
   )
-}
+})
 
 function StatusBar({ lastRefresh, workerOk, tradierOk, error }) {
   return (
@@ -278,60 +341,45 @@ export default function App() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
 
-  const parseBalances = (md) => {
-    const lines = md.split('\n')
-    const get = (label) => {
-      const line = lines.find(l => l.includes(label))
-      return line ? line.split(label)[1]?.replace(/[*:]/g, '').trim() : null
-    }
-    const accountLine = lines.find(l => l.includes('Account:'))
-    return {
-      equity: get('Total Equity:'),
-      cash: get('Cash Available:'),
-      optionBp: get('Option BP:'),
-      account: accountLine?.match(/Account:\s*(\S+)/)?.[1] || '',
-    }
-  }
-
-  const parsePositions = (md) => {
-    const lines = md.split('\n').filter(l => l.startsWith('- **'))
-    return lines.map(line => {
-      const match = line.match(/\*\*(.+?)\*\*\s*\|\s*Qty:\s*(\S+)\s*\|\s*Cost:\s*(\S+)\s*\|\s*Value:\s*(\S+)/)
-      if (!match) return null
-      return { symbol: match[1], qty: match[2], cost: match[3], value: match[4] }
-    }).filter(Boolean)
-  }
-
-  const parseHistory = (md) => {
-    const lines = md.split('\n').filter(l => l.startsWith('- **'))
-    return lines.map(line => {
-      const match = line.match(/\*\*(.+?)\*\*\s*\|\s*(\S+)\s*\|\s*(.*?)\s*\|\s*(\S+)/)
-      if (!match) return null
-      return { date: match[1].slice(0, 10), type: match[2], symbol: match[3].trim(), amount: match[4] }
-    }).filter(Boolean)
-  }
+  // parse helpers moved above (parseBalances, parsePositions, parseHistory)
 
   const refresh = useCallback(async () => {
     setLoading(true)
     try {
       const [balRes, posRes, histRes, healthRes] = await Promise.all([
-        fetch(`${WORKER_BASE}/tradier?action=balances&secret=${WORKER_SECRET}`),
-        fetch(`${WORKER_BASE}/tradier?action=positions&secret=${WORKER_SECRET}`),
-        fetch(`${WORKER_BASE}/tradier?action=history&secret=${WORKER_SECRET}`),
-        fetch(`${WORKER_BASE}/diag`),
+        fetchWithTimeout(`${WORKER_BASE}/tradier?action=balances&secret=${WORKER_SECRET}`),
+        fetchWithTimeout(`${WORKER_BASE}/tradier?action=positions&secret=${WORKER_SECRET}`),
+        fetchWithTimeout(`${WORKER_BASE}/tradier?action=history&secret=${WORKER_SECRET}`),
+        fetchWithTimeout(`${WORKER_BASE}/diag`),
       ])
 
-      if (balRes.ok) setBalances(parseBalances(await balRes.text()))
-      if (posRes.ok) setPositions(parsePositions(await posRes.text()))
-      if (histRes.ok) setHistory(parseHistory(await histRes.text()))
-      if (healthRes.ok) setHealth(await healthRes.json())
+      if (balRes && balRes.ok) {
+        const next = parseBalances(await balRes.text())
+        setBalances(prev => shallowEqual(prev || {}, next || {}) ? prev : next)
+      }
+      if (posRes && posRes.ok) {
+        const next = parsePositions(await posRes.text())
+        setPositions(prev => {
+          if (Array.isArray(prev) && prev.length === next.length && prev.every((v,i)=>v.symbol===next[i].symbol && v.value===next[i].value)) return prev
+          return next
+        })
+      }
+      if (histRes && histRes.ok) {
+        const next = parseHistory(await histRes.text())
+        setHistory(prev => JSON.stringify(prev) === JSON.stringify(next) ? prev : next)
+      }
+      if (healthRes && healthRes.ok) {
+        const next = await healthRes.json()
+        setHealth(prev => shallowEqual(prev || {}, next || {}) ? prev : next)
+      }
 
       setError(null)
       setLastRefresh(new Date())
     } catch (e) {
       setError(e.message)
+    } finally {
+      setLoading(false)
     }
-    setLoading(false)
   }, [])
 
   useEffect(() => {
