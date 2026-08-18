@@ -366,37 +366,58 @@ export default function App() {
   const refresh = useCallback(async () => {
     setLoading(true)
     try {
-      const [balRes, posRes, histRes, healthRes] = await Promise.allSettled([
+      const results = await Promise.allSettled([
         fetchWithTimeout(`${WORKER_BASE}/tradier?action=balances&secret=${WORKER_SECRET}`),
         fetchWithTimeout(`${WORKER_BASE}/tradier?action=positions&secret=${WORKER_SECRET}`),
         fetchWithTimeout(`${WORKER_BASE}/tradier?action=history&secret=${WORKER_SECRET}`),
         fetchWithTimeout(`${WORKER_BASE}/diag`),
       ])
 
-      const balResult = balRes.status === 'fulfilled' ? balRes.value : null
-      const posResult = posRes.status === 'fulfilled' ? posRes.value : null
-      const histResult = histRes.status === 'fulfilled' ? histRes.value : null
-      const healthResult = healthRes.status === 'fulfilled' ? healthRes.value : null
+      const [balResult, posResult, histResult, healthResult] = results.map(r => (r.status === 'fulfilled' ? r.value : null))
+      const failures = []
 
-      if (balResult && balResult.ok) {
+      if (balResult && !balResult.ok) {
+        failures.push(`balances:${balResult.status}`)
+      } else if (balResult && balResult.ok) {
         const next = parseBalances(await balResult.text())
         setBalances(prev => shallowEqual(prev || {}, next || {}) ? prev : next)
       }
-      if (posResult && posResult.ok) {
+
+      if (posResult && !posResult.ok) {
+        failures.push(`positions:${posResult.status}`)
+      } else if (posResult && posResult.ok) {
         const next = parsePositions(await posResult.text())
         setPositions(prev => (samePositions(prev, next) ? prev : next))
       }
-      if (histResult && histResult.ok) {
+
+      if (histResult && !histResult.ok) {
+        failures.push(`history:${histResult.status}`)
+      } else if (histResult && histResult.ok) {
         const next = parseHistory(await histResult.text())
         setHistory(prev => (sameHistory(prev, next) ? prev : next))
       }
-      if (healthResult && healthResult.ok) {
+
+      if (healthResult && !healthResult.ok) {
+        failures.push(`diag:${healthResult.status}`)
+      } else if (healthResult && healthResult.ok) {
         const next = await healthResult.json()
         setHealth(prev => shallowEqual(prev || {}, next || {}) ? prev : next)
       }
 
-      setError(null)
-      setLastRefresh(new Date())
+      const rejected = results.filter(r => r.status === 'rejected')
+      if (rejected.length) {
+        failures.push(...rejected.map((r, i) => `request${i + 1}:${r.reason?.message || 'failed'}`))
+      }
+
+      const anyDataUpdated = [balResult, posResult, histResult, healthResult].some(r => r && r.ok)
+      if (failures.length) {
+        setError(failures.join(' | '))
+      } else {
+        setError(null)
+      }
+      if (anyDataUpdated) {
+        setLastRefresh(new Date())
+      }
     } catch (e) {
       setError(e.message)
     } finally {
