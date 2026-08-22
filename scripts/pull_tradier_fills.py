@@ -9,15 +9,22 @@ import os
 import json
 import requests
 from datetime import date
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 
 TRADIER_TOKEN = os.environ.get('TRADIER_TOKEN')
 TRADIER_ACCOUNT = os.environ.get('TRADIER_ACCOUNT_ID')
 BASE_URL = os.environ.get('TRADIER_BASE_URL', 'https://api.tradier.com')
 
+# Build a requests session with retries and sensible timeout to avoid long blocking calls
 headers = {
-    'Authorization': f'Bearer {TRADIER_TOKEN}',
+    'Authorization': f'Bearer {TRADIER_TOKEN}' if TRADIER_TOKEN else '',
     'Accept': 'application/json'
 }
+
+session = requests.Session()
+retries = Retry(total=3, backoff_factor=0.5, status_forcelist=[502,503,504])
+session.mount('https://', HTTPAdapter(max_retries=retries))
 
 
 def get_todays_orders():
@@ -25,7 +32,11 @@ def get_todays_orders():
         print('[MOR] Tradier keys not set — skipping pull. Add TRADIER_TOKEN and TRADIER_ACCOUNT_ID to secrets.')
         return []
     url = f"{BASE_URL}/v1/accounts/{TRADIER_ACCOUNT}/orders"
-    resp = requests.get(url, headers=headers)
+    try:
+        resp = session.get(url, headers=headers, timeout=8)
+    except Exception as e:
+        print(f'[MOR] Tradier request failed: {e}')
+        return []
     if resp.status_code != 200:
         print(f'[MOR] Tradier API error: {resp.status_code}')
         return []

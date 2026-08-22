@@ -34,7 +34,11 @@ def push_daily_log():
         }
     }
     
-    resp = requests.post('https://api.notion.com/v1/pages', headers=headers, json=payload)
+    try:
+        resp = requests.post('https://api.notion.com/v1/pages', headers=headers, json=payload, timeout=8)
+    except Exception as e:
+        print(f'[MOR] Notion request failed: {e}')
+        return
     
     if resp.status_code == 200:
         print(f'[MOR] Notion log pushed for {today}')

@@ -26,7 +26,11 @@ def get_todays_fills():
         'after': f"{today}T00:00:00Z",
         'limit': 100
     }
-    resp = requests.get(url, headers=headers, params=params)
+    try:
+        resp = requests.get(url, headers=headers, params=params, timeout=8)
+    except Exception as e:
+        print(f'[MOR] Alpaca request failed: {e}')
+        return []
     return resp.json() if resp.status_code == 200 else []
 
 def format_trade_row(order):
