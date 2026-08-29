@@ -9,9 +9,14 @@ This repo is the **MOR Master Trading System** — a coordination hub for an AI-
 - **Markdown documentation** — specs, logs, coordination, rulebook
 
 ### Brokers
-- **Tradier** — primary broker for options and stocks
-- **Coinbase** — crypto holdings
+- **Tradier** — primary broker for options and stocks (account 6YB77278)
+- **Coinbase** — crypto holdings (not yet configured)
 - Alpaca is deprecated (legacy script `pull_alpaca_fills.py` remains for reference)
+
+### Cloudflare Worker
+The dashboard pulls live data from `memory-os-worker.morelectric.workers.dev` (secret: `px-mor-trading-2026`).
+As of 2026-08-16 the Worker is returning error 1042 — needs investigation in the Cloudflare dashboard.
+When healthy, endpoints: `/health`, `/tradier?action=balances|positions|history`, `/diag`, `/options`, `/scan`.
 
 ### Dashboard (React app)
 ```bash
