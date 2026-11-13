@@ -1,6 +1,6 @@
 # MOR_STATE.md — Rolling System Context
 > Every agent reads this at session start. Every agent appends before ending session.
-> Older entries get compressed to one line. Last updated: 2026-04-19 20:32 CT (Pete)
+> Last updated: 2026-08-16 19:42 UTC (Edge — Cursor Cloud)
 
 ---
 
@@ -12,7 +12,7 @@ This is not optional. Connectors that have been working include:
 - GitHub MCP
 - Slack MCP
 - TradingView / Bridge
-- Any broker API (TradeStation, Coinbase, etc.)
+- Any broker API (Tradier, Coinbase, etc.)
 
 **If ANY connector fails to respond, is unavailable, or returns errors:**
 1. 🔴 FLAG IT IMMEDIATELY — do not proceed as if it is normal
@@ -24,76 +24,89 @@ This is not optional. Connectors that have been working include:
 
 ---
 
+## 🔴 ACTIVE ISSUES (2026-08-16)
+
+| Issue | Status | Impact |
+|-------|--------|--------|
+| Cloudflare Worker (memory-os-worker.morelectric.workers.dev) | 🔴 DOWN — error 1042 | Dashboard has no live data, Tradier pipeline broken, Slack alerts dead |
+| GitHub Secrets (TRADIER_TOKEN, TRADIER_ACCOUNT_ID) | ⚠️ NOT SET | 15-min pipeline can't pull fills independently of Worker |
+| Session logs | ⚠️ Empty templates | Pipeline creates files but no data populates |
+
+**Worker error 1042** = "Worker tried to fetch from another Worker on the same zone." Needs Cloudflare dashboard investigation — either redeploy with `global_fetch_strictly_public` flag, or check for recent config changes.
+
+---
+
 ## 1. Current Regime
-**Macro:** Risk-off. Iran/Hormuz unresolved. Islamabad talks ongoing — ceasefire deadline April 21 = RTX earnings day. SPY at all-time-high complacency ($710). Oil bid.
-**Thesis:** Long volatility. Hold UVIX. SPY $703P expires Monday — Iran binary. GLD only confirmed winner.
-**Black Swan watch:** ACTIVE. 3+ signals live (VIX suppressed, Hormuz risk, SPY ATH = complacency top).
+**Status:** Unknown — Worker down, no live data feed since early June 2026.
+**Last known (Jun 3):** Tradier account $52.56 equity. Positions: NVDA $235C x2 (Jun 3 expiry), SPY $741P x1 (Jun 5 expiry). Both likely expired by now.
+**Brokers:** Tradier (options/stocks), Coinbase (crypto). Alpaca deprecated.
 
 ---
 
-## 2. Active Positions (Real money — Plaid/1 broker connected)
+## 2. Active Positions
+**Unknown** — Worker is down. Last confirmed positions (Jun 3 2026):
+- NVDA 06/03 $235C x2 — likely expired
+- SPY 06/05 $741P x1 — likely expired
 
-| Symbol | Qty | Cost | Value | Expiry | Stop | Owner |
-|--------|-----|------|-------|--------|------|-------|
-| SPY 04/21 $703P | 1 | $173 | ~$113 | **MON EOD** | SELL AT OPEN | Pete/Michael |
-| UVIX 05/15 $8C | 2 | $156 | ~$78 | May 15 | None defined | Michael |
-| UVIX 05/08 $8.5C | 2 | $192 | ~$48 | May 8 | None defined | Michael |
-| SPY 04/24 $640P | 3 | $120ea | ~$5 | Apr 24 | Let expire | Michael |
-| GLD | 1 share | $427 | ~$446 | None | None | Michael |
-
-**Missing:** 3 of 4 brokers not connected to Plaid. Full picture unknown.
+Tradier account: 6YB77278. Need Worker or direct API access to check current state.
 
 ---
 
-## 3. Active Thesis
-- Iran ceasefire = ~5% probability (Pete), 0% (Michael). Risk-off thesis holds.
-- Hormuz toll ($2M/ship) is leverage, not revenue. China paying yuan via CIPS = de-dollarization real.
-- SPY at ATH ($710) with Hormuz unresolved = max complacency = max tail risk.
-- UVIX near year low ($5.64 vs $65 high) = cheap vol insurance. Long vol thesis.
-- RTX $904.6M LTAMDS contract + Apr 21 earnings (ceasefire deadline same day) = dual catalyst HOLD.
-- Oil: no-deal path = gap to $115-130 Monday. Deal path = USO bleeds more.
+## 3. Infrastructure Status
+
+| Component | Status | Notes |
+|-----------|--------|-------|
+| GitHub repo | ✅ LIVE | 15-min pipeline running (empty templates) |
+| Dashboard code | ✅ On main | Worker-integrated (PR #4 merged Jun 15) |
+| Cloudflare Worker v4.21 | 🔴 DOWN | Error 1042 since unknown date |
+| Tradier API (direct) | ❓ Unknown | Keys in Worker KV, not in GitHub Secrets |
+| Coinbase API | ❓ Unknown | Keys never configured |
+| Notion MCP | ❓ Unknown | Was "verified" per Worker /diag Jun 3 |
+| Slack (C0AC8UQJT54) | ❓ Unknown | Depends on Worker for bot delivery |
+| GitHub Actions | ✅ Running | Creates empty session log templates |
 
 ---
 
 ## 4. Agent Queue
 
-| Agent | Platform | Status | In Flight |
-|-------|----------|--------|-----------|
-| Pete | Perplexity Computer | ACTIVE | Infrastructure fix session. Memory arch vote: B(v1)/C(v2). Awaiting Notion fix. |
-| Edge | Claude Code VS Code | ACTIVE | Worker v4.16 live. Shipping Health Alert (Spec #2), SMS endpoint, TradingView MCP verify. Token Vault v4.17 pending Pete ack. |
-| Chat | Claude Chat | Unknown | Chief of Staff. GitHub handle unknown — need from Michael. |
-| Vera | Claude Coworker | Unknown | Operations. USO stop rule pending. |
+| Agent | Platform | Status | Last Active |
+|-------|----------|--------|-------------|
+| Edge | Cursor Cloud | ACTIVE | This session (Aug 16) |
+| Pete | Perplexity | Unknown | Last referenced in April docs |
+| Chat | Claude Chat | Unknown | Never confirmed active |
+| Vera | Claude Coworker | Unknown | Never confirmed active |
 
 ---
 
-## 5. Last Session Summary (2026-05-31 — Edge Infrastructure Build)
-Edge (Cursor Cloud) completed broker migration. Dashboard now runs from this repo with Tradier (options/stocks) + Coinbase (crypto). Alpaca deprecated. PR #3 merged. CEO inbox summary delivered.
+## 5. Last Session Summary (2026-08-16 — Edge Cleanup)
+Edge (Cursor Cloud) session start. Found Worker DOWN (error 1042). Cleaned up stale documentation — MOR_STATE.md and CONTEXT_LIVE.md were referencing April 2026 positions and thesis (4 months stale). Updated to reflect current reality.
 
 **Completed:**
-- Dashboard rewritten: 7 panels, Tradier + Coinbase integration
-- `pull_tradier_fills.py` replaces Alpaca in 15-min GitHub Actions loop
-- AGENTS.md updated with new broker docs
+- Updated MOR_STATE.md to current state
+- Updated CONTEXT_LIVE.md to current state
+- Flagged Worker 1042 issue
+- Merged dependabot PR #5
 
-**Open items:**
-- Michael adds `TRADIER_TOKEN` + `TRADIER_ACCOUNT_ID` to GitHub secrets
-- Michael adds Coinbase API keys for dashboard crypto panel
-- Dashboard Vercel deployment (not yet done)
-- Scalp Watch worker → dashboard panel connection
-- Session-end ritual automation (Worker endpoint)
+**Blocking items (need Michael):**
+- Cloudflare Worker needs investigation/redeploy from CF dashboard
+- Add TRADIER_TOKEN + TRADIER_ACCOUNT_ID to GitHub Secrets as backup
+- Confirm current trading positions and thesis
 
 ---
 
 ## 6. Older Sessions (Compressed)
-- 2026-05-02: Edge (Cursor Cloud) initial dev environment setup. Dashboard v1 built (Alpaca). PR #1 merged.
-- 2026-04-19: Pete + Edge full build day. Worker v4.15→v4.16, all 7 secrets green, GitHub repo public, Slack comms live, Pine Scripts written, Notion audit done.
-- 2026-04-16: Session log in logs/2026-04-16_session_log.md. Alpaca paper setup, early pipeline work.
+- 2026-06-03: Edge (Cursor Cloud) wired dashboard to Worker. Live data confirmed ($52.56 equity, NVDA/SPY positions). PR #4 merged Jun 15.
+- 2026-05-31: Edge (Cursor Cloud) broker migration Alpaca → Tradier + Coinbase. PR #3 merged.
+- 2026-05-02: Edge (Cursor Cloud) initial dev env setup. Dashboard v1. PR #1 merged.
+- 2026-04-19: Pete + Edge full build day. Worker v4.15→v4.16, all 7 secrets green.
+- 2026-04-16: Alpaca paper setup, early pipeline work.
 
 ---
 
 ## Update Rules
 - Session start: READ this file before any other action
 - Session end: APPEND your summary to section 5, compress prior to section 6
-- Pete owns: Section 1 (Regime) + Section 3 (Thesis)
-- Edge owns: Section 4 (Agent Queue infra rows) + pipeline health
+- Pete owns: Section 1 (Regime) + Section 3 (Thesis) — when active
+- Edge owns: Section 3 (Infrastructure) + Section 4 (Agent Queue)
 - All agents own: their own Agent Queue row
 - Conflict rule: second writer posts Slack alert, Michael breaks tie
